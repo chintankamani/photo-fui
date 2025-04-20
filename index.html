@@ -39,8 +39,16 @@
     .card .indicator { position: absolute; bottom: 8px; left: 8px; width: 8px; height: 8px; border-radius: 50%; background: #ddd; }
     .card.selected .indicator { background: var(--primary); }
     .card .icon { position: absolute; bottom: 6px; right: 6px; font-size: 10px; color: #888; }
-    .filter-cards .card { width: 100px; height: 80px; }
-    .adjustment-cards .card { width: 120px; height: 80px; }
+    .filter-cards .card {
+      /* Allow filter cards to grow equally */
+      flex: 1 1 100px;
+      height: 80px;
+    }
+    .adjustment-cards .card {
+      /* Allow adjustment cards to grow equally */
+      flex: 1 1 120px;
+      height: 80px;
+    }
     .random-card { background: #e5e7eb; color: #555; }
     .random-card .indicator { display: none; }
     .layout { display: flex; gap: 40px; margin-top: 20px; }
@@ -482,7 +490,7 @@
     <div class="section">
       <h3>FILTERS</h3>
       <div class="cards filter-cards">
-        <div class="card" data-filter="normal">Normal<div class="filter-thumb"></div><span class="indicator"></span></div>
+        <div class="card selected" data-filter="normal">Normal<div class="filter-thumb"></div><span class="indicator"></span></div>
         <div class="card" data-filter="vintage">Vintage<div class="filter-thumb"></div><span class="indicator"></span></div>
         <div class="card" data-filter="grayscale">B&W<div class="filter-thumb"></div><span class="indicator"></span><span class="icon">◇</span></div>
         <div class="card" data-filter="sepia">Sepia<div class="filter-thumb"></div><span class="indicator"></span></div>
