@@ -415,9 +415,10 @@
   /* Rotate adjustment buttons layout, styled like other cards */
   #rotate-controls .rotate-buttons {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    column-gap: 8px;
-    row-gap: 4px;
+    /* Responsive: wrap to one column on narrower widths */
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    /* Reduced vertical gap, consistent horizontal spacing */
+    gap: 4px 8px;
     margin-top: 12px;
   }
   #rotate-controls .rotate-buttons .btn {
@@ -439,6 +440,29 @@
   }
   #rotate-controls .rotate-buttons .btn:active {
     transform: scale(0.97);
+  }
+  /* Responsive layout: on mobile, stack panels, full-width editor, and reduce outer padding */
+  @media (max-width: 767px) {
+    header, footer {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+    main {
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+    .layout {
+      flex-direction: column;
+      gap: 16px;
+    }
+    .left-panel,
+    .right-panel {
+      flex: none;
+      width: 100%;
+    }
+    .right-panel {
+      margin-top: 20px;
+    }
   }
   </style>
 </head>
@@ -874,10 +898,19 @@
         osc.start();
         osc.stop(audioCtx.currentTime + duration);
       }
-      // Play click on card clicks
-      document.querySelectorAll('.card').forEach(el => {
+      // Play click on card clicks (excluding random)
+      document.querySelectorAll('.card:not(.random-card)').forEach(el => {
         el.addEventListener('click', () => playTone(600, 0.05, 0.1));
       });
+      // Unique sound for random filter card
+      const randomCardSoundBtn = document.querySelector('.card.random-card');
+      if (randomCardSoundBtn) {
+        randomCardSoundBtn.addEventListener('click', () => {
+          // two-tone random chime
+          playTone(800, 0.08, 0.12);
+          setTimeout(() => playTone(1000, 0.08, 0.12), 120);
+        });
+      }
       // Play slider sound on range inputs
       document.querySelectorAll('input[type="range"]').forEach(el => {
         el.addEventListener('input', () => playTone(300, 0.02, 0.05));
@@ -1206,6 +1239,7 @@
       // Adjustment panel switching
       adjustmentCards.forEach(card => {
         card.addEventListener('click', () => {
+          if (!isLoaded) return;
           adjustmentCards.forEach(c => c.classList.remove('selected'));
           card.classList.add('selected');
           adjustmentControls.forEach(panel => panel.style.display = 'none');
@@ -1225,6 +1259,7 @@
       // Handle filter selection, including async BG removal
       filterCards.forEach(c => {
         c.addEventListener('click', async () => {
+          if (!isLoaded) return;
           filterCards.forEach(x => x.classList.remove('selected'));
           c.classList.add('selected');
           const f = c.dataset.filter;
@@ -1247,6 +1282,7 @@
       const randomCard = document.querySelector('.filter-cards .random-card');
       if (randomCard) {
         randomCard.addEventListener('click', () => {
+          if (!isLoaded) return;
           const filters = Array.from(filterCards).map(c => c.dataset.filter);
           const randomFilter = filters[Math.floor(Math.random() * filters.length)];
           filterCards.forEach(c => c.classList.remove('selected'));
@@ -1257,11 +1293,27 @@
           showNotification('Random filter: ' + randomFilter);
         });
       }
-      [[brightnessSlider,'brightness'],[contrastSlider,'contrast'],[saturationSlider,'saturation']].forEach(([slider,key])=>{if(!slider)return;const disp=slider.nextElementSibling;slider.addEventListener('input',()=>{const val=Number(slider.value);if(key==='brightness')state.brightness=(val/255)*100+100;else state[key]=val+100;disp.textContent=val;updateCanvas();});});
+      // Basic adjustment sliders: brightness, contrast, saturation
+      [[brightnessSlider,'brightness'],[contrastSlider,'contrast'],[saturationSlider,'saturation']].forEach(([slider,key]) => {
+        if (!slider) return;
+        const disp = slider.nextElementSibling;
+        slider.addEventListener('input', () => {
+          if (!isLoaded) return;
+          const val = Number(slider.value);
+          if (key === 'brightness') {
+            state.brightness = (val/255)*100 + 100;
+          } else {
+            state[key] = val + 100;
+          }
+          disp.textContent = val;
+          updateCanvas();
+        });
+      });
       // Color adjustment sliders
       if (vibranceSlider) {
         const disp = vibranceSlider.nextElementSibling;
         vibranceSlider.addEventListener('input', () => {
+          if (!isLoaded) return;
           const val = Number(vibranceSlider.value);
           state.vibrance = val;
           disp.textContent = val;
@@ -1271,6 +1323,7 @@
       if (noiseSlider) {
         const disp = noiseSlider.nextElementSibling;
         noiseSlider.addEventListener('input', () => {
+          if (!isLoaded) return;
           const val = Number(noiseSlider.value);
           state.noise = val;
           disp.textContent = val;
@@ -1280,22 +1333,59 @@
       if (pixelateSlider) {
         const disp = pixelateSlider.nextElementSibling;
         pixelateSlider.addEventListener('input', () => {
+          if (!isLoaded) return;
           const val = Number(pixelateSlider.value);
           state.pixelate = val;
           disp.textContent = val;
           updateCanvas();
         });
       }
-      rotationSlider&&rotationSlider.addEventListener('input',()=>{state.rotation=Number(rotationSlider.value);rotationValueDisplay&&(rotationValueDisplay.textContent=state.rotation+'°');updateCanvas();});
-      rotateLeftBtn&&rotateLeftBtn.addEventListener('click',()=>{state.rotation-=90;rotationSlider.value=state.rotation;rotationValueDisplay&&(rotationValueDisplay.textContent=state.rotation+'°');updateCanvas();});
-      rotateRightBtn&&rotateRightBtn.addEventListener('click',()=>{state.rotation+=90;rotationSlider.value=state.rotation;rotationValueDisplay&&(rotationValueDisplay.textContent=state.rotation+'°');updateCanvas();});
-      flipXBtn&&flipXBtn.addEventListener('click',()=>{state.flipH=!state.flipH;updateCanvas();});
-      flipYBtn&&flipYBtn.addEventListener('click',()=>{state.flipV=!state.flipV;updateCanvas();});
+      rotationSlider && rotationSlider.addEventListener('input', () => {
+        if (!isLoaded) return;
+        state.rotation = Number(rotationSlider.value);
+        rotationValueDisplay && (rotationValueDisplay.textContent = state.rotation + '°');
+        updateCanvas();
+      });
+      rotateLeftBtn && rotateLeftBtn.addEventListener('click', () => {
+        if (!isLoaded) return;
+        state.rotation -= 90;
+        rotationSlider.value = state.rotation;
+        rotationValueDisplay && (rotationValueDisplay.textContent = state.rotation + '°');
+        updateCanvas();
+      });
+      rotateRightBtn && rotateRightBtn.addEventListener('click', () => {
+        if (!isLoaded) return;
+        state.rotation += 90;
+        rotationSlider.value = state.rotation;
+        rotationValueDisplay && (rotationValueDisplay.textContent = state.rotation + '°');
+        updateCanvas();
+      });
+      flipXBtn && flipXBtn.addEventListener('click', () => {
+        if (!isLoaded) return;
+        state.flipH = !state.flipH;
+        updateCanvas();
+      });
+      flipYBtn && flipYBtn.addEventListener('click', () => {
+        if (!isLoaded) return;
+        state.flipV = !state.flipV;
+        updateCanvas();
+      });
       downloadBtn&&downloadBtn.addEventListener('click',()=>{const mime=document.getElementById('export-format')?.value||'image/png';const ext=mime==='image/jpeg'?'jpg':mime==='image/webp'?'webp':'png';canvas.toBlob(b=>saveAs(b,`downloaded.${ext}`),mime);showNotification('Image downloaded');});
-      saveBtn&&saveBtn.addEventListener('click',()=>{const mime=document.getElementById('export-format')?.value||'image/png';const ext=mime==='image/jpeg'?'jpg':mime==='image/webp'?'webp':'png';canvas.toBlob(b=>saveAs(b,`edited.${ext}`),mime);showNotification('Image saved');});
-      resetBtn&&resetBtn.addEventListener('click',()=>{resetState();showNotification('Reset');});
+      saveBtn && saveBtn.addEventListener('click', () => {
+        if (!isLoaded) return;
+        const mime = document.getElementById('export-format')?.value || 'image/png';
+        const ext = mime === 'image/jpeg' ? 'jpg' : mime === 'image/webp' ? 'webp' : 'png';
+        canvas.toBlob(b => saveAs(b, `edited.${ext}`), mime);
+        showNotification('Image saved');
+      });
+      resetBtn && resetBtn.addEventListener('click', () => {
+        if (!isLoaded) return;
+        resetState();
+        showNotification('Reset');
+      });
       // Crop apply/cancel
-      applyCropBtn&&applyCropBtn.addEventListener('click',()=>{
+      applyCropBtn && applyCropBtn.addEventListener('click', () => {
+        if (!isLoaded) return;
         if (cropRectEl) {
           // Compute crop coordinates relative to the canvas using bounding boxes
           const canvasRect = canvas.getBoundingClientRect();
@@ -1323,10 +1413,24 @@
           }
         }
       });
-      cancelCropBtn&&cancelCropBtn.addEventListener('click',()=>{ disableCropMode(); showNotification('Crop canceled'); });
+      cancelCropBtn && cancelCropBtn.addEventListener('click', () => {
+        if (!isLoaded) return;
+        disableCropMode();
+        showNotification('Crop canceled');
+      });
       // Zoom in/out handlers
-      zoomInBtn&&zoomInBtn.addEventListener('click',()=>{state.zoom=Math.min(state.zoom+zoomStep,maxZoom);updateZoomDisplay();updateCanvas();});
-      zoomOutBtn&&zoomOutBtn.addEventListener('click',()=>{state.zoom=Math.max(state.zoom-zoomStep,minZoom);updateZoomDisplay();updateCanvas();});
+      zoomInBtn && zoomInBtn.addEventListener('click', () => {
+        if (!isLoaded) return;
+        state.zoom = Math.min(state.zoom + zoomStep, maxZoom);
+        updateZoomDisplay();
+        updateCanvas();
+      });
+      zoomOutBtn && zoomOutBtn.addEventListener('click', () => {
+        if (!isLoaded) return;
+        state.zoom = Math.max(state.zoom - zoomStep, minZoom);
+        updateZoomDisplay();
+        updateCanvas();
+      });
     });
   </script>
 
