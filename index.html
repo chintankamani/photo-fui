@@ -977,6 +977,7 @@
       const cropOverlay = document.getElementById('crop-overlay');
       const applyCropBtn = document.getElementById('btn-apply-crop');
       const cancelCropBtn = document.getElementById('btn-cancel-crop');
+      const cropControls = document.getElementById('crop-controls');
       let isCropping = false;
       let cropStartX = 0, cropStartY = 0;
       let cropRectEl = null;
@@ -985,6 +986,8 @@
           cropOverlay.style.display = 'block';
           cropOverlay.addEventListener('mousedown', onCropMouseDown);
         }
+        // Hide apply/cancel until a selection is drawn
+        if (cropControls) cropControls.style.display = 'none';
       }
       function disableCropMode() {
         if (cropOverlay) {
@@ -994,20 +997,26 @@
         if (cropRectEl) {
           cropRectEl.remove(); cropRectEl = null;
         }
+        // Hide controls and reset cropping state
+        if (cropControls) cropControls.style.display = 'none';
+        // Revert adjustment panel to 'Basic'
+        adjustmentCards.forEach(c => c.classList.toggle('selected', c.dataset.adjustment === 'basic'));
+        adjustmentControls.forEach(panel => panel.style.display = panel.id === 'basic-controls' ? 'block' : 'none');
         isCropping = false;
       }
       function onCropMouseDown(e) {
         if (!cropOverlay) return;
         isCropping = true;
-        // Remove any existing crop rectangle from previous draw
+        // Remove existing crop rectangle
         if (cropRectEl) {
           cropRectEl.remove();
           cropRectEl = null;
         }
-        // Use offset to get coordinates relative to overlay
-        cropStartX = e.offsetX;
-        cropStartY = e.offsetY;
-        // Create new crop rectangle
+        // Compute start coordinates relative to overlay
+        const overlayRect = cropOverlay.getBoundingClientRect();
+        cropStartX = e.clientX - overlayRect.left;
+        cropStartY = e.clientY - overlayRect.top;
+        // Create new crop rectangle element
         cropRectEl = document.createElement('div');
         cropRectEl.className = 'crop-rect';
         cropOverlay.appendChild(cropRectEl);
@@ -1020,20 +1029,23 @@
       }
       function onCropMouseMove(e) {
         if (!isCropping || !cropRectEl) return;
-        // Use offset to get current mouse position relative to overlay
-        const x = e.offsetX;
-        const y = e.offsetY;
+        // Compute current mouse position relative to overlay
+        const overlayRect = cropOverlay.getBoundingClientRect();
+        let x = e.clientX - overlayRect.left;
+        let y = e.clientY - overlayRect.top;
         let w = x - cropStartX;
         let h = y - cropStartY;
         if (w < 0) {
-          cropRectEl.style.left = x + 'px'; w = -w;
+          cropRectEl.style.left = (x) + 'px';
+          w = -w;
         } else {
-          cropRectEl.style.left = cropStartX + 'px';
+          cropRectEl.style.left = (cropStartX) + 'px';
         }
         if (h < 0) {
-          cropRectEl.style.top = y + 'px'; h = -h;
+          cropRectEl.style.top = (y) + 'px';
+          h = -h;
         } else {
-          cropRectEl.style.top = cropStartY + 'px';
+          cropRectEl.style.top = (cropStartY) + 'px';
         }
         cropRectEl.style.width = w + 'px';
         cropRectEl.style.height = h + 'px';
@@ -1044,6 +1056,14 @@
           cropOverlay.removeEventListener('mousemove', onCropMouseMove);
         }
         document.removeEventListener('mouseup', onCropMouseUp);
+        // Show apply/cancel controls if a valid selection exists
+        if (cropRectEl && cropControls) {
+          const w = parseInt(cropRectEl.style.width, 10);
+          const h = parseInt(cropRectEl.style.height, 10);
+          if (w > 0 && h > 0) {
+            cropControls.style.display = 'flex';
+          }
+        }
       }
       function resetState() {
         state = { filter: 'normal', brightness: 100, contrast: 100, saturation: 100, vibrance: 0, noise: 0, pixelate: 1, rotation: 0, flipH: false, flipV: false, zoom: 1 };
@@ -1235,16 +1255,28 @@
       // Crop apply/cancel
       applyCropBtn&&applyCropBtn.addEventListener('click',()=>{
         if (cropRectEl) {
-          const x = parseInt(cropRectEl.style.left,10);
-          const y = parseInt(cropRectEl.style.top,10);
-          const w = parseInt(cropRectEl.style.width,10);
-          const h = parseInt(cropRectEl.style.height,10);
-          if (w>0 && h>0) {
-            const temp = document.createElement('canvas'); temp.width=w; temp.height=h;
+          // Compute crop coordinates relative to the canvas using bounding boxes
+          const canvasRect = canvas.getBoundingClientRect();
+          const rect = cropRectEl.getBoundingClientRect();
+          const x = Math.round(rect.left - canvasRect.left);
+          const y = Math.round(rect.top - canvasRect.top);
+          const w = Math.round(rect.width);
+          const h = Math.round(rect.height);
+          if (w > 0 && h > 0) {
+            // Create a temporary canvas to extract the cropped region
+            const temp = document.createElement('canvas');
+            temp.width = w;
+            temp.height = h;
             temp.getContext('2d').drawImage(canvas, x, y, w, h, 0, 0, w, h);
             const dataURL = temp.toDataURL();
+            // Load the cropped image as the new original
             originalImage = new Image();
-            originalImage.onload = ()=>{ isLoaded=true; updateCanvas(); disableCropMode(); showNotification('Crop applied'); };
+            originalImage.onload = () => {
+              isLoaded = true;
+              updateCanvas();
+              disableCropMode();
+              showNotification('Crop applied');
+            };
             originalImage.src = dataURL;
           }
         }
