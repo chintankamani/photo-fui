@@ -26,8 +26,6 @@
     .logo-title .title { font-size: 24px; font-weight: bold; }
     .logo-title .subtitle { font-size: 14px; color: #555; margin-top: 4px; }
     .start-link { margin-top: 8px; font-size: 14px; color: var(--secondary); font-weight: 500; }
-    .code-toggle { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: background 0.2s; margin-top: 4px; }
-    .code-toggle:hover { background: rgba(0,0,0,0.05); }
     main { flex: 1; overflow-y: auto; padding: 0 40px; }
     h3 { font-size: 12px; letter-spacing: 1px; color: #555; margin-bottom: 8px; text-transform: uppercase; }
     .section { margin-top: 20px; }
@@ -207,14 +205,15 @@
     /* Notification style */
     .notification {
       position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--primary);
-      color: white;
-      padding: 12px 24px;
-      border-radius: 4px;
-      box-shadow: var(--shadow-md);
+      top: 20px;
+      right: 20px;
+      left: auto;
+      transform: none;
+      background: #fff;
+      color: #111;
+      padding: 12px 16px;
+      border-radius: 8px;
+      box-shadow: var(--shadow-xs), var(--shadow-sm);
       z-index: 1000;
       opacity: 0;
       transition: opacity 0.3s;
@@ -222,6 +221,20 @@
 
     .notification.visible {
       opacity: 1;
+    }
+    /* Crop overlay */
+    #crop-overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      display: none;
+      cursor: crosshair;
+      z-index: 10;
+    }
+    .crop-rect {
+      position: absolute;
+      border: 2px dashed #fff;
+      background: rgba(255,255,255,0.3);
     }
 
     /* Menu buttons (Load, Undo, Redo) */
@@ -257,15 +270,10 @@
       <div class="subtitle">An interactive photo editing tool with professional filters and adjustments.</div>
       <a href="#" class="start-link" id="start-editing">START EDITING →</a>
     </div>
-    <button class="code-toggle" title="Toggle Code View">
-      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M8.59 16.34L13.17 12 8.59 7.66 10 6l6 6-6 6z"/></svg>
-    </button>
   </header>
   <main>
     <div class="menu-buttons">
       <button class="menu-btn" id="btn-load">Load</button>
-      <button class="menu-btn disabled" id="btn-undo">Undo</button>
-      <button class="menu-btn disabled" id="btn-redo">Redo</button>
     </div>
 
     <div class="section">
@@ -280,8 +288,7 @@
         <div class="card" data-filter="sharpen">Sharpen<div class="filter-thumb"></div><span class="indicator"></span></div>
         <div class="card" data-filter="emboss">Emboss<div class="filter-thumb"></div><span class="indicator"></span></div>
         <div class="card" data-filter="invert">Invert<div class="filter-thumb"></div><span class="indicator"></span><span class="icon">◇</span></div>
-        <div class="card selected" data-filter="brightness">Bright<div class="filter-thumb"></div><span class="indicator"></span></div>
-        <div class="card" data-filter="noise">Noise<div class="filter-thumb"></div><span class="indicator"></span><span class="icon">◇</span></div>
+        <!-- Removed Bright and Noise filters -->
         <div class="card random-card"><span class="icon">↻</span></div>
       </div>
     </div>
@@ -295,7 +302,6 @@
             <div class="card" data-adjustment="crop">Crop<span class="indicator"></span></div>
             <div class="card" data-adjustment="rotate">Rotate<span class="indicator"></span></div>
             <div class="card" data-adjustment="draw">Draw<span class="indicator"></span></div>
-            <div class="card random-card"><span class="icon">↻</span></div>
           </div>
         </div>
 
@@ -373,6 +379,7 @@
           <div class="tui-image-editor-container">
             <div class="tui-image-editor-main">
               <canvas id="canvas" width="700" height="500"></canvas>
+              <div id="crop-overlay"></div>
               <div class="upload-zone" id="upload-zone">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path>
@@ -424,8 +431,6 @@
       const filterCards = document.querySelectorAll('.filter-cards .card:not(.random-card)');
       const adjustmentCards = document.querySelectorAll('.adjustment-cards .card:not(.random-card)');
       const adjustmentControls = document.querySelectorAll('.adjustment-controls');
-      const btnUndo = document.getElementById('btn-undo');
-      const btnRedo = document.getElementById('btn-redo');
       const btnLoad = document.getElementById('btn-load');
 
       // Global variables
@@ -571,30 +576,6 @@
         }, 3000);
       }
 
-      // Setup undo/redo buttons
-      btnUndo.addEventListener('click', function() {
-        if (!this.classList.contains('disabled') && imageEditor) {
-          try {
-            imageEditor.undo();
-            showNotification("Undo successful");
-          } catch (err) {
-            console.error('Error during undo:', err);
-            showNotification("Undo failed");
-          }
-        }
-      });
-
-      btnRedo.addEventListener('click', function() {
-        if (!this.classList.contains('disabled') && imageEditor) {
-          try {
-            imageEditor.redo();
-            showNotification("Redo successful");
-          } catch (err) {
-            console.error('Error during redo:', err);
-            showNotification("Redo failed");
-          }
-        }
-      });
 
       // Upload functionality
       if (uploadBtn) {
@@ -714,6 +695,72 @@
       let originalImage = new Image();
       let isLoaded = false;
       let state = { filter: 'normal', brightness: 100, contrast: 100, saturation: 100, vibrance: 0, noise: 0, pixelate: 1, rotation: 0, flipH: false, flipV: false };
+      // Crop support
+      const cropOverlay = document.getElementById('crop-overlay');
+      const applyCropBtn = document.getElementById('btn-apply-crop');
+      const cancelCropBtn = document.getElementById('btn-cancel-crop');
+      let isCropping = false;
+      let cropStartX = 0, cropStartY = 0;
+      let cropRectEl = null;
+      function enableCropMode() {
+        if (cropOverlay) {
+          cropOverlay.style.display = 'block';
+          cropOverlay.addEventListener('mousedown', onCropMouseDown);
+        }
+      }
+      function disableCropMode() {
+        if (cropOverlay) {
+          cropOverlay.style.display = 'none';
+          cropOverlay.removeEventListener('mousedown', onCropMouseDown);
+        }
+        if (cropRectEl) {
+          cropRectEl.remove(); cropRectEl = null;
+        }
+        isCropping = false;
+      }
+      function onCropMouseDown(e) {
+        if (!cropOverlay) return;
+        isCropping = true;
+        const rect = canvas.getBoundingClientRect();
+        cropStartX = e.clientX - rect.left;
+        cropStartY = e.clientY - rect.top;
+        cropRectEl = document.createElement('div');
+        cropRectEl.className = 'crop-rect';
+        cropOverlay.appendChild(cropRectEl);
+        cropRectEl.style.left = cropStartX + 'px';
+        cropRectEl.style.top = cropStartY + 'px';
+        cropRectEl.style.width = '0px';
+        cropRectEl.style.height = '0px';
+        cropOverlay.addEventListener('mousemove', onCropMouseMove);
+        document.addEventListener('mouseup', onCropMouseUp);
+      }
+      function onCropMouseMove(e) {
+        if (!isCropping || !cropRectEl) return;
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        let w = x - cropStartX;
+        let h = y - cropStartY;
+        if (w < 0) {
+          cropRectEl.style.left = x + 'px'; w = -w;
+        } else {
+          cropRectEl.style.left = cropStartX + 'px';
+        }
+        if (h < 0) {
+          cropRectEl.style.top = y + 'px'; h = -h;
+        } else {
+          cropRectEl.style.top = cropStartY + 'px';
+        }
+        cropRectEl.style.width = w + 'px';
+        cropRectEl.style.height = h + 'px';
+      }
+      function onCropMouseUp(e) {
+        isCropping = false;
+        if (cropOverlay) {
+          cropOverlay.removeEventListener('mousemove', onCropMouseMove);
+        }
+        document.removeEventListener('mouseup', onCropMouseUp);
+      }
       function resetState() {
         state = { filter: 'normal', brightness: 100, contrast: 100, saturation: 100, vibrance: 0, noise: 0, pixelate: 1, rotation: 0, flipH: false, flipV: false };
         // Reset filter and adjustment panels
@@ -811,6 +858,20 @@
         });
       });
       filterCards.forEach(c=>c.addEventListener('click',()=>{filterCards.forEach(x=>x.classList.remove('selected'));c.classList.add('selected');state.filter=c.dataset.filter;updateCanvas();}));
+      // Random filter selector
+      const randomCard = document.querySelector('.filter-cards .random-card');
+      if (randomCard) {
+        randomCard.addEventListener('click', () => {
+          const filters = Array.from(filterCards).map(c => c.dataset.filter);
+          const randomFilter = filters[Math.floor(Math.random() * filters.length)];
+          filterCards.forEach(c => c.classList.remove('selected'));
+          const card = document.querySelector(`.filter-cards .card[data-filter="${randomFilter}"]`);
+          if (card) card.classList.add('selected');
+          state.filter = randomFilter;
+          updateCanvas();
+          showNotification('Random filter: ' + randomFilter);
+        });
+      }
       [[brightnessSlider,'brightness'],[contrastSlider,'contrast'],[saturationSlider,'saturation']].forEach(([slider,key])=>{if(!slider)return;const disp=slider.nextElementSibling;slider.addEventListener('input',()=>{const val=Number(slider.value);if(key==='brightness')state.brightness=(val/255)*100+100;else state[key]=val+100;disp.textContent=val;updateCanvas();});});
       // Color adjustment sliders
       if (vibranceSlider) {
@@ -848,6 +909,24 @@
       downloadBtn&&downloadBtn.addEventListener('click',()=>{canvas.toBlob(b=>saveAs(b,'edited.png'));showNotification('Image downloaded');});
       saveBtn&&saveBtn.addEventListener('click',()=>{canvas.toBlob(b=>saveAs(b,'edited.png'));showNotification('Image saved');});
       resetBtn&&resetBtn.addEventListener('click',()=>{resetState();showNotification('Reset');});
+      // Crop apply/cancel
+      applyCropBtn&&applyCropBtn.addEventListener('click',()=>{
+        if (cropRectEl) {
+          const x = parseInt(cropRectEl.style.left,10);
+          const y = parseInt(cropRectEl.style.top,10);
+          const w = parseInt(cropRectEl.style.width,10);
+          const h = parseInt(cropRectEl.style.height,10);
+          if (w>0 && h>0) {
+            const temp = document.createElement('canvas'); temp.width=w; temp.height=h;
+            temp.getContext('2d').drawImage(canvas, x, y, w, h, 0, 0, w, h);
+            const dataURL = temp.toDataURL();
+            originalImage = new Image();
+            originalImage.onload = ()=>{ isLoaded=true; updateCanvas(); disableCropMode(); showNotification('Crop applied'); };
+            originalImage.src = dataURL;
+          }
+        }
+      });
+      cancelCropBtn&&cancelCropBtn.addEventListener('click',()=>{ disableCropMode(); showNotification('Crop canceled'); });
     });
   </script>
 
