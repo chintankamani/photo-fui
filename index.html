@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>PhotoEdit.io</title>
+  <link type="text/css" href="https://uicdn.toast.com/tui-color-picker/v2.2.6/tui-color-picker.css" rel="stylesheet" />
+  <link type="text/css" href="https://uicdn.toast.com/tui-image-editor/latest/tui-image-editor.css" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-page: #f7f7f7;
+      --bg-card: #ffffff;
+      --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.1);
+      --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+      --primary: #f43f5e;
+      --secondary: #22c55e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body { display: flex; flex-direction: column; min-height: 100vh; font-family: system-ui, sans-serif; color: #111; background: var(--bg-page); }
+    a { text-decoration: none; color: inherit; }
+    button { background: none; border: none; cursor: pointer; font: inherit; }
+    header { display: flex; justify-content: space-between; align-items: flex-start; padding: 20px 40px; }
+    .logo-title { display: flex; flex-direction: column; }
+    .logo-title .title { font-size: 24px; font-weight: bold; }
+    .logo-title .subtitle { font-size: 14px; color: #555; margin-top: 4px; }
+    .start-link { margin-top: 8px; font-size: 14px; color: var(--secondary); font-weight: 500; }
+    .code-toggle { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; transition: background 0.2s; margin-top: 4px; }
+    .code-toggle:hover { background: rgba(0,0,0,0.05); }
+    main { flex: 1; overflow-y: auto; padding: 0 40px; }
+    h3 { font-size: 12px; letter-spacing: 1px; color: #555; margin-bottom: 8px; text-transform: uppercase; }
+    .section { margin-top: 20px; }
+    .cards { display: flex; gap: 12px; flex-wrap: wrap; }
+    .card { background: var(--bg-card); min-width: 100px; padding: 12px; border-radius: 8px; box-shadow: var(--shadow-xs), var(--shadow-sm); position: relative; display: flex; align-items: center; justify-content: center; font-size: 14px; cursor: pointer; }
+    .card:hover { box-shadow: var(--shadow-sm), var(--shadow-md); }
+    .card .indicator { position: absolute; bottom: 8px; left: 8px; width: 8px; height: 8px; border-radius: 50%; background: #ddd; }
+    .card.selected .indicator { background: var(--primary); }
+    .card .icon { position: absolute; bottom: 6px; right: 6px; font-size: 10px; color: #888; }
+    .filter-cards .card { width: 100px; height: 80px; }
+    .adjustment-cards .card { width: 120px; height: 80px; }
+    .random-card { background: #e5e7eb; color: #555; }
+    .random-card .indicator { display: none; }
+    .layout { display: flex; gap: 40px; margin-top: 20px; }
+    .left-panel { flex: 1; display: flex; flex-direction: column; }
+    .right-panel { flex: 2; display: flex; flex-direction: column; }
+
+    .tui-image-editor-container {
+      width: 100%;
+      height: 500px;
+      background: var(--bg-card);
+      padding: 16px;
+      border-radius: 8px;
+      box-shadow: var(--shadow-xs), var(--shadow-sm);
+    }
+
+    .tui-image-editor-main {
+      position: relative;
+    }
+
+    #tui-image-editor {
+      width: 100%;
+      height: 480px;
+    }
+
+    .upload-zone {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 2px dashed #ddd;
+      border-radius: 8px;
+      padding: 40px;
+      text-align: center;
+      position: absolute;
+      top: 0;
+      left: 0;
+      background: rgba(255, 255, 255, 0.9);
+      z-index: 100;
+    }
+
+    .upload-zone.hidden {
+      display: none;
+    }
+
+    .upload-zone svg {
+      width: 48px;
+      height: 48px;
+      margin-bottom: 16px;
+      color: #888;
+    }
+
+    .upload-zone p {
+      font-size: 14px;
+      color: #777;
+      margin-bottom: 16px;
+    }
+
+    .upload-btn {
+      background: var(--bg-card);
+      color: #333;
+      border: 1px solid #ddd;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .upload-btn:hover {
+      background: #f0f0f0;
+    }
+
+    .file-input {
+      display: none;
+    }
+
+    footer { display: flex; gap: 12px; padding: 20px 40px; }
+    .btn { flex: 1; display: flex; align-items: center; justify-content: center; padding: 12px 16px; border-radius: 8px; font-size: 14px; font-weight: 500; gap: 8px; cursor: pointer; }
+    .btn.download { background: #fff; color: #111; box-shadow: var(--shadow-xs), var(--shadow-sm); }
+    .btn.reset { background: #111; color: #fff; }
+    .btn.save { background: var(--primary); color: #fff; flex: 2; }
+    .btn svg { width: 16px; height: 16px; fill: currentColor; }
+
+    .btn.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Custom styling for filter thumbnails */
+    .filter-thumb {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      background-size: cover;
+      background-position: center;
+      opacity: 0.6;
+      border-radius: 4px;
+      z-index: -1;
+    }
+
+    /* Adjustment control styles */
+    .adjustment-controls {
+      background: var(--bg-card);
+      padding: 16px;
+      border-radius: 8px;
+      box-shadow: var(--shadow-xs), var(--shadow-sm);
+      margin-top: 20px;
+    }
+
+    .control-group {
+      margin-bottom: 12px;
+    }
+
+    .control-group label {
+      display: block;
+      font-size: 12px;
+      margin-bottom: 4px;
+      color: #555;
+    }
+
+    .control-group input[type="range"] {
+      width: 100%;
+    }
+
+    .control-value {
+      font-size: 12px;
+      color: #777;
+      text-align: right;
+    }
+
+    /* Small buttons in adjustment controls */
+    .adjustment-controls .btn {
+      margin-top: 8px;
+      margin-bottom: 8px;
+      padding: 8px 12px;
+      font-size: 12px;
+    }
+
+    /* Custom TUI editor overrides */
+    .tui-image-editor-container .tui-image-editor-header {
+      display: none !important;
+    }
+
+    .tui-image-editor-container .tui-image-editor-main-container {
+      top: 0 !important;
+    }
+
+    /* Hide TUI's default menu */
+    .tui-image-editor-container .tui-image-editor-menu {
+      display: none !important;
+    }
+
+    .tui-image-editor-canvas-container {
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    /* Color picker customization */
+    .tui-colorpicker-container {
+      margin-top: 8px;
+    }
+
+    /* Notification style */
+    .notification {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--primary);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 4px;
+      box-shadow: var(--shadow-md);
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .notification.visible {
+      opacity: 1;
+    }
+
+    /* Menu buttons (Load, Undo, Redo) */
+    .menu-buttons {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .menu-btn {
+      background: var(--bg-card);
+      padding: 8px 16px;
+      border-radius: 8px;
+      box-shadow: var(--shadow-xs), var(--shadow-sm);
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .menu-btn:hover {
+      background: #f0f0f0;
+    }
+
+    .menu-btn.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo-title">
+      <div class="title">PhotoEdit.io</div>
+      <div class="subtitle">An interactive photo editing tool with professional filters and adjustments.</div>
+      <a href="#" class="start-link" id="start-editing">START EDITING →</a>
+    </div>
+    <button class="code-toggle" title="Toggle Code View">
+      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M8.59 16.34L13.17 12 8.59 7.66 10 6l6 6-6 6z"/></svg>
+    </button>
+  </header>
+  <main>
+    <div class="menu-buttons">
+      <button class="menu-btn" id="btn-load">Load</button>
+      <button class="menu-btn disabled" id="btn-undo">Undo</button>
+      <button class="menu-btn disabled" id="btn-redo">Redo</button>
+    </div>
+
+    <div class="section">
+      <h3>FILTERS</h3>
+      <div class="cards filter-cards">
+        <div class="card" data-filter="normal">Normal<div class="filter-thumb"></div><span class="indicator"></span></div>
+        <div class="card" data-filter="vintage">Vintage<div class="filter-thumb"></div><span class="indicator"></span></div>
+        <div class="card" data-filter="grayscale">B&W<div class="filter-thumb"></div><span class="indicator"></span><span class="icon">◇</span></div>
+        <div class="card" data-filter="sepia">Sepia<div class="filter-thumb"></div><span class="indicator"></span></div>
+        <div class="card" data-filter="sepia2">Sepia2<div class="filter-thumb"></div><span class="indicator"></span></div>
+        <div class="card" data-filter="blur">Blur<div class="filter-thumb"></div><span class="indicator"></span><span class="icon">◇</span></div>
+        <div class="card" data-filter="sharpen">Sharpen<div class="filter-thumb"></div><span class="indicator"></span></div>
+        <div class="card" data-filter="emboss">Emboss<div class="filter-thumb"></div><span class="indicator"></span></div>
+        <div class="card" data-filter="invert">Invert<div class="filter-thumb"></div><span class="indicator"></span><span class="icon">◇</span></div>
+        <div class="card selected" data-filter="brightness">Bright<div class="filter-thumb"></div><span class="indicator"></span></div>
+        <div class="card" data-filter="noise">Noise<div class="filter-thumb"></div><span class="indicator"></span><span class="icon">◇</span></div>
+        <div class="card random-card"><span class="icon">↻</span></div>
+      </div>
+    </div>
+    <div class="layout">
+      <div class="left-panel">
+        <div class="section">
+          <h3>ADJUSTMENTS</h3>
+          <div class="cards adjustment-cards">
+            <div class="card selected" data-adjustment="basic">Basic<span class="indicator"></span></div>
+            <div class="card" data-adjustment="color">Color<span class="indicator"></span></div>
+            <div class="card" data-adjustment="crop">Crop<span class="indicator"></span></div>
+            <div class="card" data-adjustment="rotate">Rotate<span class="indicator"></span></div>
+            <div class="card" data-adjustment="draw">Draw<span class="indicator"></span></div>
+            <div class="card random-card"><span class="icon">↻</span></div>
+          </div>
+        </div>
+
+        <div class="adjustment-controls" id="basic-controls">
+          <div class="control-group">
+            <label for="brightness">Brightness</label>
+            <input type="range" id="brightness" min="-255" max="255" value="0" step="1">
+            <div class="control-value">0</div>
+          </div>
+          <div class="control-group">
+            <label for="contrast">Contrast</label>
+            <input type="range" id="contrast" min="-100" max="100" value="0" step="1">
+            <div class="control-value">0</div>
+          </div>
+          <div class="control-group">
+            <label for="saturation">Saturation</label>
+            <input type="range" id="saturation" min="-100" max="100" value="0" step="1">
+            <div class="control-value">0</div>
+          </div>
+        </div>
+
+        <div class="adjustment-controls" id="color-controls" style="display: none;">
+          <div class="control-group">
+            <label for="vibrance">Vibrance</label>
+            <input type="range" id="vibrance" min="0" max="100" value="0" step="1">
+            <div class="control-value">0</div>
+          </div>
+          <div class="control-group">
+            <label for="noise">Noise</label>
+            <input type="range" id="noise" min="0" max="1000" value="0" step="10">
+            <div class="control-value">0</div>
+          </div>
+          <div class="control-group">
+            <label for="pixelate">Pixelate</label>
+            <input type="range" id="pixelate" min="1" max="20" value="1" step="1">
+            <div class="control-value">1</div>
+          </div>
+        </div>
+
+        <div class="adjustment-controls" id="crop-controls" style="display: none;">
+          <button class="btn" id="btn-apply-crop">Apply Crop</button>
+          <button class="btn" id="btn-cancel-crop">Cancel</button>
+        </div>
+
+        <div class="adjustment-controls" id="rotate-controls" style="display: none;">
+          <div class="control-group">
+            <label for="rotation-angle">Rotation Angle</label>
+            <input type="range" id="rotation-angle" min="-180" max="180" value="0" step="1">
+            <div class="control-value">0°</div>
+          </div>
+          <button class="btn" id="btn-rotate-left">Rotate 90° Left</button>
+          <button class="btn" id="btn-rotate-right">Rotate 90° Right</button>
+          <button class="btn" id="btn-flip-x">Flip Horizontal</button>
+          <button class="btn" id="btn-flip-y">Flip Vertical</button>
+        </div>
+
+        <div class="adjustment-controls" id="draw-controls" style="display: none;">
+          <div class="control-group">
+            <label for="brush-width">Brush Width</label>
+            <input type="range" id="brush-width" min="1" max="30" value="12" step="1">
+            <div class="control-value">12</div>
+          </div>
+          <div class="control-group">
+            <label>Brush Color</label>
+            <div id="color-picker-container"></div>
+          </div>
+          <button class="btn" id="btn-free-drawing">Free Drawing</button>
+          <button class="btn" id="btn-line-drawing">Line Drawing</button>
+        </div>
+      </div>
+
+      <div class="right-panel">
+        <div class="section">
+          <h3>EDITOR</h3>
+          <div class="tui-image-editor-container">
+            <div class="tui-image-editor-main">
+              <canvas id="canvas" width="700" height="500"></canvas>
+              <div class="upload-zone" id="upload-zone">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"></path>
+                  <polyline points="17 8 12 3 7 8"></polyline>
+                  <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                <p>Drag and drop your photo here<br>or</p>
+                <button class="upload-btn" id="upload-btn">Choose a file</button>
+                <input type="file" class="file-input" id="file-input" accept="image/*">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <footer>
+    <button class="btn download disabled" id="download-btn">
+      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M5 20h14v-2H5v2zm7-18L5.33 9h3.34v4h4.66v-4h3.34L12 2z"/></svg>
+      Download
+    </button>
+    <button class="btn reset disabled" id="reset-btn">
+      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M17.65 6.35c-1.45-1.45-3.44-2.35-5.65-2.35-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78l-3.22 3.22h7v-7l-2.35 2.35z"/></svg>
+      Reset
+    </button>
+    <button class="btn save disabled" id="save-btn">
+      <svg viewBox="0 0 24 24"><path fill="currentColor" d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm2 16H5V5h11.17L19 7.83V19zm-7-7c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3zM6 6h9v4H6z"/></svg>
+      Save Edit
+    </button>
+  </footer>
+
+  <!-- Required scripts for TUI Image Editor -->
+  <script src="https://uicdn.toast.com/tui.code-snippet/v1.5.0/tui-code-snippet.min.js"></script>
+  <script src="https://uicdn.toast.com/tui-color-picker/v2.2.6/tui-color-picker.min.js"></script>
+  <script src="https://api-storage.cloud.toast.com/v1/AUTH_e18353c4ea5746c097143946d0644e61/toast-ui-cdn/tui-image-editor/v3.11.0/example/fabric-v4.2.0.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.3/FileSaver.min.js"></script>
+  <script src="https://uicdn.toast.com/tui-image-editor/latest/tui-image-editor.js"></script>
+
+  <script type="text/plain">
+    document.addEventListener('DOMContentLoaded', function() {
+      // DOM Elements
+      const fileInput = document.getElementById('file-input');
+      const uploadBtn = document.getElementById('upload-btn');
+      const uploadZone = document.getElementById('upload-zone');
+      const downloadBtn = document.getElementById('download-btn');
+      const resetBtn = document.getElementById('reset-btn');
+      const saveBtn = document.getElementById('save-btn');
+      const startEditing = document.getElementById('start-editing');
+      const filterCards = document.querySelectorAll('.filter-cards .card:not(.random-card)');
+      const adjustmentCards = document.querySelectorAll('.adjustment-cards .card:not(.random-card)');
+      const adjustmentControls = document.querySelectorAll('.adjustment-controls');
+      const btnUndo = document.getElementById('btn-undo');
+      const btnRedo = document.getElementById('btn-redo');
+      const btnLoad = document.getElementById('btn-load');
+
+      // Global variables
+      let imageEditor = null;
+      let originalImageUrl = null;
+      let tempEditors = []; // Track temporary editors for cleanup
+
+      // Initialize the TUI Image Editor with proper configuration
+      function initImageEditor() {
+        // Clear any existing instance
+        if (imageEditor) {
+          try {
+            imageEditor.destroy();
+          } catch (err) {
+            console.error('Error destroying previous editor instance:', err);
+          }
+        }
+
+        // Create new instance with proper configuration
+        try {
+          imageEditor = new tui.ImageEditor('#tui-image-editor', {
+            includeUI: {
+              loadImage: {
+                path: 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
+                name: 'Blank'
+              },
+              theme: {
+                // Main canvas theme
+                'common.backgroundColor': '#f7f7f7',
+                'common.border': '0px',
+
+                // Header theme
+                'header.backgroundColor': 'transparent',
+                'header.borderBottom': '0px',
+                'header.display': 'none',
+
+                // Icon theme
+                'menu.normalIcon.path': 'https://uicdn.toast.com/tui-image-editor/latest/examples/img/icon-d.svg',
+                'menu.normalIcon.name': 'icon-d',
+                'menu.activeIcon.path': 'https://uicdn.toast.com/tui-image-editor/latest/examples/img/icon-b.svg',
+                'menu.activeIcon.name': 'icon-b',
+                'menu.iconSize.width': '24px',
+                'menu.iconSize.height': '24px',
+
+                // Sub menu theme
+                'submenu.backgroundColor': 'transparent',
+                'submenu.partition.color': '#e5e5e5',
+
+                // Main icon theme
+                'submenu.normalIcon.path': 'https://uicdn.toast.com/tui-image-editor/latest/examples/img/icon-d.svg',
+                'submenu.normalIcon.name': 'icon-d',
+                'submenu.activeIcon.path': 'https://uicdn.toast.com/tui-image-editor/latest/examples/img/icon-b.svg',
+                'submenu.activeIcon.name': 'icon-b',
+
+                // Button theme
+                'submenu.button.border': '0px',
+                'submenu.button.backgroundColor': 'transparent',
+              },
+              menu: ['crop', 'flip', 'rotate', 'draw', 'shape', 'icon', 'text', 'mask', 'filter'],
+              initMenu: 'filter',
+              uiSize: {
+                width: '100%',
+                height: '100%'
+              },
+              menuBarPosition: 'bottom'
+            },
+            cssMaxWidth: 700,
+            cssMaxHeight: 500,
+            selectionStyle: {
+              cornerSize: 20,
+              rotatingPointOffset: 70
+            },
+            usageStatistics: false
+          });
+        } catch (err) {
+          console.error('Error initializing editor:', err);
+          alert('Error initializing editor. Please reload the page.');
+          return null;
+        }
+
+        // Hide TUI's default menu if it exists
+        setTimeout(() => {
+          const tuiMenu = document.querySelector('.tui-image-editor-menu');
+          if (tuiMenu) tuiMenu.style.display = 'none';
+        }, 100);
+
+        // Setup event listeners for the editor
+        if (imageEditor) {
+          imageEditor.on('objectActivated', function(props) {
+            console.log('Object activated:', props);
+          });
+
+          imageEditor.on('objectMoved', function(props) {
+            console.log('Object moved:', props);
+          });
+
+          imageEditor.on('objectScaled', function(props) {
+            console.log('Object scaled:', props);
+          });
+
+          imageEditor.on('redoStackChanged', function(props) {
+            // Enable/disable redo button based on availability
+            btnRedo.classList.toggle('disabled', !imageEditor.hasRedoStack());
+          });
+
+          imageEditor.on('undoStackChanged', function(props) {
+            // Enable/disable undo button based on availability
+            btnUndo.classList.toggle('disabled', !imageEditor.hasUndoStack());
+          });
+        }
+
+        return imageEditor;
+      }
+
+      // Initialize image editor
+      imageEditor = initImageEditor();
+
+      // Show a notification message
+      function showNotification(message) {
+        // Remove any existing notification
+        const existingNotification = document.querySelector('.notification');
+        if (existingNotification) {
+          existingNotification.remove();
+        }
+
+        // Create new notification
+        const notification = document.createElement('div');
+        notification.className = 'notification';
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        // Show notification
+        setTimeout(() => {
+          notification.classList.add('visible');
+        }, 10);
+
+        // Remove notification after a delay
+        setTimeout(() => {
+          notification.classList.remove('visible');
+          setTimeout(() => {
+            notification.remove();
+          }, 300);
+        }, 3000);
+      }
+
+      // Setup undo/redo buttons
+      btnUndo.addEventListener('click', function() {
+        if (!this.classList.contains('disabled') && imageEditor) {
+          try {
+            imageEditor.undo();
+            showNotification("Undo successful");
+          } catch (err) {
+            console.error('Error during undo:', err);
+            showNotification("Undo failed");
+          }
+        }
+      });
+
+      btnRedo.addEventListener('click', function() {
+        if (!this.classList.contains('disabled') && imageEditor) {
+          try {
+            imageEditor.redo();
+            showNotification("Redo successful");
+          } catch (err) {
+            console.error('Error during redo:', err);
+            showNotification("Redo failed");
+          }
+        }
+      });
+
+      // Upload functionality
+      if (uploadBtn) {
+        uploadBtn.onclick = function() {
+          if (fileInput) {
+            fileInput.click();
+          }
+        };
+      }
+
+      if (fileInput) {
+        fileInput.onchange = function(e) {
+          if (e.target.files && e.target.files.length) {
+            handleFile(e.target.files[0]);
+          }
+        };
+      }
+
+      if (uploadZone) {
+        uploadZone.ondragover = function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          uploadZone.style.borderColor = 'var(--primary)';
+          return false;
+        };
+
+        uploadZone.ondragleave = function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          uploadZone.style.borderColor = '#ddd';
+          return false;
+        };
+
+        uploadZone.ondrop = function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          uploadZone.style.borderColor = '#ddd';
+          if (e.dataTransfer.files && e.dataTransfer.files.length) {
+            handleFile(e.dataTransfer.files[0]);
+          }
+          return false;
+        };
+
+      }
+
+      // Trigger file selector from Load and Start Editing buttons
+      if (startEditing) {
+        startEditing.addEventListener('click', function(e) {
+          e.preventDefault();
+          if (fileInput) fileInput.click();
+        });
+      }
+      if (btnLoad) {
+        btnLoad.addEventListener('click', function(e) {
+          e.preventDefault();
+          if (fileInput) fileInput.click();
+        });
+      }
+
+      // Handle selected or dropped file
+      function handleFile(file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+          const dataURL = event.target.result;
+          if (uploadZone) uploadZone.classList.add('hidden');
+          originalImageUrl = dataURL;
+          if (imageEditor) {
+            imageEditor.loadImageFromURL(dataURL, file.name || 'Image')
+              .then(() => {
+                showNotification('Image loaded');
+                if (downloadBtn) downloadBtn.classList.remove('disabled');
+                if (resetBtn) resetBtn.classList.remove('disabled');
+                if (saveBtn) saveBtn.classList.remove('disabled');
+                if (btnUndo) btnUndo.classList.add('disabled');
+                if (btnRedo) btnRedo.classList.add('disabled');
+              })
+              .catch(err => {
+                console.error('Error loading image:', err);
+                showNotification('Failed to load image');
+              });
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+
+    });
+  </script>
+  <!-- Custom image editor functionality without TUI -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const fileInput = document.getElementById('file-input');
+      const uploadZone = document.getElementById('upload-zone');
+      const uploadBtn = document.getElementById('upload-btn');
+      const startEditing = document.getElementById('start-editing');
+      const btnLoad = document.getElementById('btn-load');
+      const downloadBtn = document.getElementById('download-btn');
+      const resetBtn = document.getElementById('reset-btn');
+      const saveBtn = document.getElementById('save-btn');
+      const filterCards = document.querySelectorAll('.filter-cards .card:not(.random-card)');
+      // Adjustment panel tabs and panels
+      const adjustmentCards = document.querySelectorAll('.adjustment-cards .card:not(.random-card)');
+      const adjustmentControls = document.querySelectorAll('.adjustment-controls');
+      const brightnessSlider = document.getElementById('brightness');
+      const contrastSlider = document.getElementById('contrast');
+      const saturationSlider = document.getElementById('saturation');
+      const vibranceSlider = document.getElementById('vibrance');
+      const noiseSlider = document.getElementById('noise');
+      const pixelateSlider = document.getElementById('pixelate');
+      const rotationSlider = document.getElementById('rotation-angle');
+      const rotateLeftBtn = document.getElementById('btn-rotate-left');
+      const rotateRightBtn = document.getElementById('btn-rotate-right');
+      const flipXBtn = document.getElementById('btn-flip-x');
+      const flipYBtn = document.getElementById('btn-flip-y');
+      const rotationValueDisplay = rotationSlider && rotationSlider.nextElementSibling;
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+      let originalImage = new Image();
+      let isLoaded = false;
+      let state = { filter: 'normal', brightness: 100, contrast: 100, saturation: 100, vibrance: 0, noise: 0, pixelate: 1, rotation: 0, flipH: false, flipV: false };
+      function resetState() {
+        state = { filter: 'normal', brightness: 100, contrast: 100, saturation: 100, vibrance: 0, noise: 0, pixelate: 1, rotation: 0, flipH: false, flipV: false };
+        // Reset filter and adjustment panels
+        filterCards.forEach(c => c.classList.toggle('selected', c.dataset.filter === state.filter));
+        adjustmentCards.forEach(c => c.classList.toggle('selected', c.dataset.adjustment === 'basic'));
+        adjustmentControls.forEach(panel => panel.style.display = panel.id === 'basic-controls' ? 'block' : 'none');
+        // Reset sliders
+        if (brightnessSlider) { brightnessSlider.value = 0; brightnessSlider.nextElementSibling.textContent = 0; }
+        if (contrastSlider) { contrastSlider.value = 0; contrastSlider.nextElementSibling.textContent = 0; }
+        if (saturationSlider) { saturationSlider.value = 0; saturationSlider.nextElementSibling.textContent = 0; }
+        if (vibranceSlider) { vibranceSlider.value = 0; vibranceSlider.nextElementSibling.textContent = 0; }
+        if (noiseSlider) { noiseSlider.value = 0; noiseSlider.nextElementSibling.textContent = 0; }
+        if (pixelateSlider) { pixelateSlider.value = 1; pixelateSlider.nextElementSibling.textContent = 1; }
+        if (rotationSlider) { rotationSlider.value = 0; rotationValueDisplay && (rotationValueDisplay.textContent = '0°'); }
+        updateCanvas();
+      }
+      function updateCanvas() {
+        if (!isLoaded) return;
+        const cw = canvas.width, ch = canvas.height;
+        // Dimensions for drawing
+        const iw = originalImage.width, ih = originalImage.height;
+        const scale = Math.min(cw/iw, ch/ih);
+        const dw = iw * scale, dh = ih * scale;
+        // Offscreen canvas for filters
+        const off = document.createElement('canvas'); off.width = cw; off.height = ch;
+        const offCtx = off.getContext('2d');
+        // Apply preset filter
+        const presetMap = {
+          normal: '',
+          vintage: 'sepia(0.4) contrast(0.9) brightness(1.1)',
+          grayscale: 'grayscale(1)',
+          sepia: 'sepia(1)',
+          sepia2: 'sepia(0.8) brightness(1.2)',
+          blur: 'blur(3px)',
+          invert: 'invert(1)'
+        };
+        const preset = presetMap[state.filter] || '';
+        offCtx.filter = (`${preset} brightness(${state.brightness}%) contrast(${state.contrast}%) saturate(${state.saturation}%) saturate(${state.vibrance + 100}%)`).trim();
+        offCtx.translate(cw/2, ch/2);
+        offCtx.rotate(state.rotation * Math.PI / 180);
+        offCtx.scale(state.flipH ? -1 : 1, state.flipV ? -1 : 1);
+        offCtx.drawImage(originalImage, -dw/2, -dh/2, dw, dh);
+        offCtx.setTransform(1, 0, 0, 1, 0, 0);
+        offCtx.filter = 'none';
+        // Draw to main canvas with pixelation
+        ctx.clearRect(0, 0, cw, ch);
+        if (state.pixelate > 1) {
+          const p = state.pixelate;
+          const smallW = Math.ceil(cw / p), smallH = Math.ceil(ch / p);
+          const small = document.createElement('canvas'); small.width = smallW; small.height = smallH;
+          const smallCtx = small.getContext('2d');
+          smallCtx.drawImage(off, 0, 0, smallW, smallH);
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(small, 0, 0, cw, ch);
+          ctx.imageSmoothingEnabled = true;
+        } else {
+          ctx.drawImage(off, 0, 0);
+        }
+        // Apply noise
+        if (state.noise > 0) {
+          const imageData = ctx.getImageData(0, 0, cw, ch);
+          const data = imageData.data;
+          const noiseIntensity = state.noise / 1000;
+          for (let i = 0; i < data.length; i += 4) {
+            const rand = (Math.random() * 2 - 1) * 255 * noiseIntensity;
+            data[i] += rand;
+            data[i + 1] += rand;
+            data[i + 2] += rand;
+          }
+          ctx.putImageData(imageData, 0, 0);
+        }
+      }
+      function showNotification(msg) {
+        const n=document.createElement('div'); n.className='notification'; n.textContent=msg; document.body.appendChild(n);
+        setTimeout(()=>n.classList.add('visible'),10);
+        setTimeout(()=>{n.classList.remove('visible'); setTimeout(()=>n.remove(),300);},3000);
+      }
+      function handleFile(file) {
+        const reader=new FileReader(); reader.onload=e=>{ originalImage.onload=()=>{ isLoaded=true; resetState(); [downloadBtn,resetBtn,saveBtn].forEach(b=>b&&b.classList.remove('disabled')); startEditing&&(startEditing.style.display='none'); uploadZone&&uploadZone.classList.add('hidden'); showNotification('Image loaded'); }; originalImage.src=e.target.result; }; reader.readAsDataURL(file);
+      }
+      [uploadBtn,startEditing,btnLoad].forEach(b=>{ if(!b)return; b.addEventListener('click',e=>{e.preventDefault();fileInput&&fileInput.click();});});
+      fileInput&&fileInput.addEventListener('change', e => { e.target.files[0] && handleFile(e.target.files[0]); });
+      if (uploadZone) {
+        ['dragover','dragenter'].forEach(evt => uploadZone.addEventListener(evt, e => { e.preventDefault(); uploadZone.style.borderColor = 'var(--primary)'; }));
+        ['dragleave','drop','dragend'].forEach(evt => uploadZone.addEventListener(evt, e => { e.preventDefault(); uploadZone.style.borderColor = '#ddd'; if (evt === 'drop' && e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); }));
+      }
+      // Adjustment panel switching
+      adjustmentCards.forEach(card => {
+        card.addEventListener('click', () => {
+          adjustmentCards.forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+          adjustmentControls.forEach(panel => panel.style.display = 'none');
+          const panel = document.getElementById(`${card.dataset.adjustment}-controls`);
+          if (panel) panel.style.display = 'block';
+        });
+      });
+      filterCards.forEach(c=>c.addEventListener('click',()=>{filterCards.forEach(x=>x.classList.remove('selected'));c.classList.add('selected');state.filter=c.dataset.filter;updateCanvas();}));
+      [[brightnessSlider,'brightness'],[contrastSlider,'contrast'],[saturationSlider,'saturation']].forEach(([slider,key])=>{if(!slider)return;const disp=slider.nextElementSibling;slider.addEventListener('input',()=>{const val=Number(slider.value);if(key==='brightness')state.brightness=(val/255)*100+100;else state[key]=val+100;disp.textContent=val;updateCanvas();});});
+      // Color adjustment sliders
+      if (vibranceSlider) {
+        const disp = vibranceSlider.nextElementSibling;
+        vibranceSlider.addEventListener('input', () => {
+          const val = Number(vibranceSlider.value);
+          state.vibrance = val;
+          disp.textContent = val;
+          updateCanvas();
+        });
+      }
+      if (noiseSlider) {
+        const disp = noiseSlider.nextElementSibling;
+        noiseSlider.addEventListener('input', () => {
+          const val = Number(noiseSlider.value);
+          state.noise = val;
+          disp.textContent = val;
+          updateCanvas();
+        });
+      }
+      if (pixelateSlider) {
+        const disp = pixelateSlider.nextElementSibling;
+        pixelateSlider.addEventListener('input', () => {
+          const val = Number(pixelateSlider.value);
+          state.pixelate = val;
+          disp.textContent = val;
+          updateCanvas();
+        });
+      }
+      rotationSlider&&rotationSlider.addEventListener('input',()=>{state.rotation=Number(rotationSlider.value);rotationValueDisplay&&(rotationValueDisplay.textContent=state.rotation+'°');updateCanvas();});
+      rotateLeftBtn&&rotateLeftBtn.addEventListener('click',()=>{state.rotation-=90;rotationSlider.value=state.rotation;rotationValueDisplay&&(rotationValueDisplay.textContent=state.rotation+'°');updateCanvas();});
+      rotateRightBtn&&rotateRightBtn.addEventListener('click',()=>{state.rotation+=90;rotationSlider.value=state.rotation;rotationValueDisplay&&(rotationValueDisplay.textContent=state.rotation+'°');updateCanvas();});
+      flipXBtn&&flipXBtn.addEventListener('click',()=>{state.flipH=!state.flipH;updateCanvas();});
+      flipYBtn&&flipYBtn.addEventListener('click',()=>{state.flipV=!state.flipV;updateCanvas();});
+      downloadBtn&&downloadBtn.addEventListener('click',()=>{canvas.toBlob(b=>saveAs(b,'edited.png'));showNotification('Image downloaded');});
+      saveBtn&&saveBtn.addEventListener('click',()=>{canvas.toBlob(b=>saveAs(b,'edited.png'));showNotification('Image saved');});
+      resetBtn&&resetBtn.addEventListener('click',()=>{resetState();showNotification('Reset');});
+    });
+  </script>
+
+</body>
+</html>
