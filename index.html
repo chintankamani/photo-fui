@@ -412,6 +412,33 @@
       font-size: 18px;
       font-weight: 500;
     }
+  /* Rotate adjustment buttons layout, styled like other cards */
+  #rotate-controls .rotate-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    column-gap: 8px;
+    row-gap: 4px;
+    margin-top: 12px;
+  }
+  #rotate-controls .rotate-buttons .btn {
+    background: var(--bg-card);
+    padding: 12px;
+    border-radius: 8px;
+    box-shadow: var(--shadow-xs), var(--shadow-sm);
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #111;
+    transition: box-shadow 0.2s ease, transform 0.1s ease;
+  }
+  #rotate-controls .rotate-buttons .btn:hover {
+    box-shadow: var(--shadow-sm), var(--shadow-md);
+  }
+  #rotate-controls .rotate-buttons .btn:active {
+    transform: scale(0.97);
+  }
   </style>
 </head>
 <body>
@@ -502,10 +529,12 @@
             <input type="range" id="rotation-angle" min="-180" max="180" value="0" step="1">
             <div class="control-value">0°</div>
           </div>
-          <button class="btn" id="btn-rotate-left">Rotate 90° Left</button>
-          <button class="btn" id="btn-rotate-right">Rotate 90° Right</button>
-          <button class="btn" id="btn-flip-x">Flip Horizontal</button>
-          <button class="btn" id="btn-flip-y">Flip Vertical</button>
+          <div class="rotate-buttons">
+            <button class="btn" id="btn-rotate-left">Rotate 90° Left</button>
+            <button class="btn" id="btn-rotate-right">Rotate 90° Right</button>
+            <button class="btn" id="btn-flip-x">Flip Horizontal</button>
+            <button class="btn" id="btn-flip-y">Flip Vertical</button>
+          </div>
         </div>
 
         <div class="adjustment-controls" id="draw-controls" style="display: none;">
@@ -989,6 +1018,18 @@
         // Hide apply/cancel until a selection is drawn
         if (cropControls) cropControls.style.display = 'none';
       }
+      // Hide crop overlay and controls without altering adjustment panels
+      function hideCropOverlay() {
+        if (cropOverlay) {
+          cropOverlay.style.display = 'none';
+          cropOverlay.removeEventListener('mousedown', onCropMouseDown);
+        }
+        if (cropRectEl) {
+          cropRectEl.remove(); cropRectEl = null;
+        }
+        if (cropControls) cropControls.style.display = 'none';
+        isCropping = false;
+      }
       function disableCropMode() {
         if (cropOverlay) {
           cropOverlay.style.display = 'none';
@@ -1172,11 +1213,11 @@
             // Show adjustment panel; use flex for crop controls to align buttons
             panel.style.display = card.dataset.adjustment === 'crop' ? 'flex' : 'block';
           }
-          // Enable crop overlay if crop adjustment selected, else disable
+          // Enable crop overlay if crop adjustment selected, else hide overlay but keep panel
           if (card.dataset.adjustment === 'crop') {
             enableCropMode();
           } else {
-            disableCropMode();
+            hideCropOverlay();
           }
         });
       });
