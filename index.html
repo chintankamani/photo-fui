@@ -40,7 +40,7 @@
     .random-card { background: #e5e7eb; color: #555; }
     .random-card .indicator { display: none; }
     .layout { display: flex; gap: 40px; margin-top: 20px; }
-    .left-panel { flex: 1; display: flex; flex-direction: column; }
+    .left-panel { flex: 1.1; display: flex; flex-direction: column; }
     .right-panel { flex: 2; display: flex; flex-direction: column; }
 
     .tui-image-editor-container {
@@ -124,6 +124,18 @@
     .btn.disabled {
       opacity: 0.5;
       cursor: not-allowed;
+    }
+    /* Export format selector styling */
+    .format-select {
+      flex: 0 0 100px;
+      width: 100px;
+      padding: 12px;
+      font-size: 14px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      background: var(--bg-card);
+      color: #111;
+      cursor: pointer;
     }
 
     /* Custom styling for filter thumbnails */
@@ -375,6 +387,27 @@
       opacity: 0.5;
       cursor: not-allowed;
     }
+    /* Zoom buttons styling */
+    .zoom-section .menu-btn {
+      font-size: 18px;
+      padding: 12px 24px;
+    }
+    /* Zoom controls container adjustments */
+    .menu-buttons.zoom-controls {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+    .menu-buttons.zoom-controls .zoom-btn {
+      flex: 1;
+    }
+    /* Zoom value styling */
+    .menu-buttons.zoom-controls #zoom-value {
+      flex: 1;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 500;
+    }
   </style>
 </head>
 <body>
@@ -485,11 +518,20 @@
           <button class="btn" id="btn-free-drawing">Free Drawing</button>
           <button class="btn" id="btn-line-drawing">Line Drawing</button>
         </div>
+        <div class="section zoom-section">
+          <h3>Image Zoom</h3>
+          <div class="menu-buttons zoom-controls" style="margin-bottom:8px;">
+            <button class="menu-btn zoom-btn" id="btn-zoom-out">-</button>
+            <span id="zoom-value">100%</span>
+            <button class="menu-btn zoom-btn" id="btn-zoom-in">+</button>
+          </div>
+        </div>
       </div>
 
       <div class="right-panel">
         <div class="section">
           <h3>EDITOR</h3>
+          <!-- Zoom controls moved to Adjustment panel -->
           <div class="tui-image-editor-container">
             <div class="tui-image-editor-main">
               <canvas id="canvas" width="700" height="500"></canvas>
@@ -516,6 +558,11 @@
     </div>
   </main>
   <footer>
+    <select id="export-format" class="format-select">
+      <option value="image/png">PNG</option>
+      <option value="image/jpeg">JPEG</option>
+      <option value="image/webp">WEBP</option>
+    </select>
     <button class="btn reset disabled" id="reset-btn">
       <svg viewBox="0 0 24 24"><path fill="currentColor" d="M17.65 6.35c-1.45-1.45-3.44-2.35-5.65-2.35-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78l-3.22 3.22h7v-7l-2.35 2.35z"/></svg>
       Reset
@@ -778,6 +825,64 @@
 
     });
   </script>
+  <!-- Click and slider sound effects -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      const audioCtx = new AudioCtx();
+      function playTone(freq, duration, volume) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      }
+      // Play click on card clicks
+      document.querySelectorAll('.card').forEach(el => {
+        el.addEventListener('click', () => playTone(600, 0.05, 0.1));
+      });
+      // Play slider sound on range inputs
+      document.querySelectorAll('input[type="range"]').forEach(el => {
+        el.addEventListener('input', () => playTone(300, 0.02, 0.05));
+      });
+      // Play click on zoom in/out buttons
+      document.querySelectorAll('.zoom-btn').forEach(el => {
+        el.addEventListener('click', () => playTone(600, 0.05, 0.1));
+      });
+      // Play click on Load button
+      const loadBtn = document.getElementById('btn-load');
+      if (loadBtn) {
+        loadBtn.addEventListener('click', () => playTone(700, 0.07, 0.1));
+      }
+      // Play 'completed' sound on action buttons (excluding save and reset)
+      document.querySelectorAll('.btn:not(#save-btn):not(#reset-btn)').forEach(el => {
+        el.addEventListener('click', () => playTone(900, 0.1, 0.15));
+      });
+      // Unique sound for reset button
+      const resetButton = document.getElementById('reset-btn');
+      if (resetButton) {
+        resetButton.addEventListener('click', () => playTone(1000, 0.1, 0.15));
+      }
+      // Play tone on export format change
+      const formatSelect = document.getElementById('export-format');
+      if (formatSelect) {
+        formatSelect.addEventListener('change', () => playTone(1100, 0.07, 0.1));
+      }
+      // Unique sound for save button
+      const saveButton = document.getElementById('save-btn');
+      if (saveButton) {
+        saveButton.addEventListener('click', () => {
+          // two-tone ascending chime
+          playTone(1200, 0.08, 0.2);
+          setTimeout(() => playTone(1500, 0.08, 0.2), 80);
+        });
+      }
+    });
+  </script>
   <!-- Custom image editor functionality without TUI -->
   <!-- Load TensorFlow.js and BodyPix for client-side background removal -->
   <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.20.0/dist/tf.min.js"></script>
@@ -812,7 +917,15 @@
       const ctx = canvas.getContext('2d');
       let originalImage = new Image();
       let isLoaded = false;
-      let state = { filter: 'normal', brightness: 100, contrast: 100, saturation: 100, vibrance: 0, noise: 0, pixelate: 1, rotation: 0, flipH: false, flipV: false };
+      let state = { filter: 'normal', brightness: 100, contrast: 100, saturation: 100, vibrance: 0, noise: 0, pixelate: 1, rotation: 0, flipH: false, flipV: false, zoom: 1 };
+      // Zoom controls
+      const zoomInBtn = document.getElementById('btn-zoom-in');
+      const zoomOutBtn = document.getElementById('btn-zoom-out');
+      const zoomValueDisplay = document.getElementById('zoom-value');
+      const minZoom = 0.1, maxZoom = 5, zoomStep = 0.1;
+      function updateZoomDisplay() {
+        if (zoomValueDisplay) zoomValueDisplay.textContent = Math.round(state.zoom * 100) + '%';
+      }
       // Prepare BodyPix model and mask canvas for BG removal
       let bodyPixModel = null;
       let maskCanvas = null;
@@ -930,7 +1043,7 @@
         document.removeEventListener('mouseup', onCropMouseUp);
       }
       function resetState() {
-        state = { filter: 'normal', brightness: 100, contrast: 100, saturation: 100, vibrance: 0, noise: 0, pixelate: 1, rotation: 0, flipH: false, flipV: false };
+        state = { filter: 'normal', brightness: 100, contrast: 100, saturation: 100, vibrance: 0, noise: 0, pixelate: 1, rotation: 0, flipH: false, flipV: false, zoom: 1 };
         // Clear any previous background mask
         maskCanvas = null;
         // Reset filter and adjustment panels
@@ -946,14 +1059,16 @@
         if (pixelateSlider) { pixelateSlider.value = 1; pixelateSlider.nextElementSibling.textContent = 1; }
         if (rotationSlider) { rotationSlider.value = 0; rotationValueDisplay && (rotationValueDisplay.textContent = '0°'); }
         updateCanvas();
+        if (zoomValueDisplay) updateZoomDisplay();
       }
       function updateCanvas() {
         if (!isLoaded) return;
         const cw = canvas.width, ch = canvas.height;
         // Dimensions for drawing
         const iw = originalImage.width, ih = originalImage.height;
-        const scale = Math.min(cw/iw, ch/ih);
-        const dw = iw * scale, dh = ih * scale;
+        const baseScale = Math.min(cw/iw, ch/ih);
+        const currentScale = baseScale * state.zoom;
+        const dw = iw * currentScale, dh = ih * currentScale;
         // Offscreen canvas for filters
         const off = document.createElement('canvas'); off.width = cw; off.height = ch;
         const offCtx = off.getContext('2d');
@@ -1111,8 +1226,8 @@
       rotateRightBtn&&rotateRightBtn.addEventListener('click',()=>{state.rotation+=90;rotationSlider.value=state.rotation;rotationValueDisplay&&(rotationValueDisplay.textContent=state.rotation+'°');updateCanvas();});
       flipXBtn&&flipXBtn.addEventListener('click',()=>{state.flipH=!state.flipH;updateCanvas();});
       flipYBtn&&flipYBtn.addEventListener('click',()=>{state.flipV=!state.flipV;updateCanvas();});
-      downloadBtn&&downloadBtn.addEventListener('click',()=>{canvas.toBlob(b=>saveAs(b,'edited.png'));showNotification('Image downloaded');});
-      saveBtn&&saveBtn.addEventListener('click',()=>{canvas.toBlob(b=>saveAs(b,'edited.png'));showNotification('Image saved');});
+      downloadBtn&&downloadBtn.addEventListener('click',()=>{const mime=document.getElementById('export-format')?.value||'image/png';const ext=mime==='image/jpeg'?'jpg':mime==='image/webp'?'webp':'png';canvas.toBlob(b=>saveAs(b,`downloaded.${ext}`),mime);showNotification('Image downloaded');});
+      saveBtn&&saveBtn.addEventListener('click',()=>{const mime=document.getElementById('export-format')?.value||'image/png';const ext=mime==='image/jpeg'?'jpg':mime==='image/webp'?'webp':'png';canvas.toBlob(b=>saveAs(b,`edited.${ext}`),mime);showNotification('Image saved');});
       resetBtn&&resetBtn.addEventListener('click',()=>{resetState();showNotification('Reset');});
       // Crop apply/cancel
       applyCropBtn&&applyCropBtn.addEventListener('click',()=>{
@@ -1132,6 +1247,9 @@
         }
       });
       cancelCropBtn&&cancelCropBtn.addEventListener('click',()=>{ disableCropMode(); showNotification('Crop canceled'); });
+      // Zoom in/out handlers
+      zoomInBtn&&zoomInBtn.addEventListener('click',()=>{state.zoom=Math.min(state.zoom+zoomStep,maxZoom);updateZoomDisplay();updateCanvas();});
+      zoomOutBtn&&zoomOutBtn.addEventListener('click',()=>{state.zoom=Math.max(state.zoom-zoomStep,minZoom);updateZoomDisplay();updateCanvas();});
     });
   </script>
 
